@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mental Math">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Mental Math Trainer</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1220; --panel:#141f31; --panel2:#1b2940; --line:#2a3a53; --text:#f4f7fb; --muted:#aab8ca; --accent:#80b7ff; --good:#65d6a0; --bad:#ff8585; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:linear-gradient(160deg,#101b2d,#09101c 70%); color:var(--text); font:16px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; min-height:100vh; }
+    main { width:min(720px,100%); margin:0 auto; padding: max(18px,env(safe-area-inset-top)) 16px max(28px,env(safe-area-inset-bottom)); }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:8px 0 20px; }
+    h1 { font-size:24px; margin:0; letter-spacing:-.5px; } .sub { color:var(--muted); font-size:13px; margin-top:5px; }
+    .pill { border:1px solid var(--line); border-radius:999px; padding:7px 10px; color:var(--muted); font-size:12px; white-space:nowrap; }
+    .card { background:rgba(20,31,49,.96); border:1px solid var(--line); border-radius:18px; padding:17px; margin:13px 0; box-shadow:0 12px 30px #0002; }
+    .section-title { font-size:13px; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; margin-bottom:12px; }
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .op { background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:12px; padding:12px 5px; min-height:72px; font-size:13px; }
+    .op strong { display:block; font-size:24px; margin-bottom:4px; }
+    .op.selected { border:2px solid var(--accent); background:#203753; }
+    label { display:block; font-size:13px; color:var(--muted); margin:13px 0 7px; }
+    select,input { width:100%; background:#0d1727; border:1px solid var(--line); color:var(--text); border-radius:11px; padding:13px; font-size:16px; }
+    input[type=range] { padding:0; accent-color:var(--accent); }
+    .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    button { cursor:pointer; border:0; border-radius:12px; padding:14px 16px; font-size:16px; font-weight:700; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .primary { background:var(--accent); color:#081321; width:100%; }
+    .secondary { background:var(--panel2); color:var(--text); border:1px solid var(--line); }
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }
+    .listen { text-align:center; padding:24px 12px; }
+    .sound { font-size:38px; margin-bottom:8px; }
+    .status { color:var(--muted); font-size:14px; min-height:22px; }
+    .answer-row { display:flex; gap:8px; }
+    .answer-row input { min-width:0; font-size:22px; text-align:center; }
+    .answer-row button { min-width:112px; }
+    .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center; }
+    .stat { background:#0d1727; padding:12px 6px; border-radius:12px; }
+    .stat b { display:block; font-size:21px; margin-top:4px; }
+    .stat span { color:var(--muted); font-size:12px; }
+    .feedback { padding:13px; border-radius:12px; margin-top:12px; display:none; line-height:1.5; }
+    .feedback.good { display:block; background:#123328; border:1px solid #28664d; }
+    .feedback.bad { display:block; background:#3a2026; border:1px solid #75404a; }
+    .small { color:var(--muted); font-size:12px; line-height:1.5; }
+    .hidden { display:none !important; }
+    .sequence { font-size:18px; font-weight:700; overflow-wrap:anywhere; }
+    .footer { text-align:center; color:var(--muted); font-size:12px; padding:12px 5px; }
+    @media(max-width:420px) { .grid { grid-template-columns:repeat(2,1fr); } .two { grid-template-columns:1fr 1fr; } h1{font-size:22px;} }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Mental Math Trainer</h1><div class="sub">Listen. Calculate mentally. Answer.</div></div>
+    <div class="pill" id="offlinePill">Local practice</div>
+  </header>
+
+  <section class="card" id="settings">
+    <div class="section-title">1 · Choose operation</div>
+    <div class="grid" id="ops">
+      <button class="op selected" data-op="add"><strong>＋</strong>Add</button>
+      <button class="op" data-op="subtract"><strong>−</strong>Subtract</button>
+      <button class="op" data-op="multiply"><strong>×</strong>Multiply</button>
+      <button class="op" data-op="divide"><strong>÷</strong>Divide</button>
+    </div>
+    <div class="two">
+      <div><label for="count">Numbers in sequence</label><select id="count"><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option></select></div>
+      <div><label for="level">Difficulty</label><select id="level"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></div>
+    </div>
+    <div class="two">
+      <div><label for="rate">Speaking speed: <span id="rateVal">1.0×</span></label><input id="rate" type="range" min=".65" max="1.35" step=".05" value="1"></div>
+      <div><label for="gap">Gap between numbers</label><select id="gap"><option value="900">Short</option><option value="1400" selected>Normal</option><option value="2000">Long</option><option value="2800">Extra long</option></select></div>
+    </div>
+    <label for="voice">Voice</label><select id="voice"><option value="">Default device voice</option></select>
+    <p class="small">Each round uses one operation repeatedly. Division rounds are designed to produce whole-number answers.</p>
+    <button class="primary" id="startBtn">Start dictation</button>
+  </section>
+
+  <section class="card listen hidden" id="roundCard">
+    <div class="sound" id="soundIcon">🔊</div>
+    <div class="section-title">Listen to the sequence</div>
+    <h2 id="roundTitle" style="margin:5px 0 8px;font-size:21px">Get ready</h2>
+    <div class="status" id="status">The numbers will be spoken one at a time.</div>
+    <div class="actions">
+      <button class="secondary" id="repeatBtn">↻ Repeat sequence</button>
+      <button class="secondary" id="stopBtn">■ Stop audio</button>
+    </div>
+  </section>
+
+  <section class="card hidden" id="answerCard">
+    <div class="section-title">2 · Your final answer</div>
+    <div class="answer-row">
+      <input id="answer" type="text" inputmode="decimal" autocomplete="off" placeholder="Answer" aria-label="Your final answer">
+      <button class="primary" id="submitBtn">Submit</button>
+    </div>
+    <div class="actions">
+      <button class="secondary" id="speakAnswerBtn">🎙 Speak answer</button>
+      <button class="secondary" id="nextBtn" disabled>Next round →</button>
+    </div>
+    <div class="small" id="speechHint" style="margin-top:9px">You can type your answer or use voice input if your browser supports it.</div>
+    <div id="feedback" class="feedback"></div>
+    <div id="review" class="small hidden" style="margin-top:12px"></div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">Your session</div>
+    <div class="stats">
+      <div class="stat"><span>Accuracy</span><b id="accuracy">—</b></div>
+      <div class="stat"><span>Correct</span><b id="correct">0</b></div>
+      <div class="stat"><span>Avg. time</span><b id="avgTime">—</b></div>
+    </div>
+    <div class="actions"><button class="secondary" id="resetStats">Reset stats</button><button class="secondary" id="showHelp">How to use</button></div>
+    <p class="small hidden" id="helpText">Choose an operation and settings, then tap Start dictation. Listen without looking at the numbers, calculate mentally, and submit only the final result. After submitting, the app shows the sequence and answer. Your session statistics stay on this device only.</p>
+  </section>
+  <div class="footer">No account · No paid API · Calculations happen on this device</div>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let operation = 'add', sequence = [], answerValue = 0, roundStarted = 0;
+  let answered = false, correctCount = 0, attempts = 0, totalSeconds = 0, voices = [];
+  let recognition = null;
+  const symbols = {add:'+', subtract:'−', multiply:'×', divide:'÷'};
+  const words = {add:'plus', subtract:'minus', multiply:'times', divide:'divided by'};
+  const ranges = {
+    easy: {add:[1,20], subtract:[1,15], multiply:[2,9], divide:[2,9]},
+    medium:{add:[5,60], subtract:[2,35], multiply:[2,12], divide:[2,12]},
+    hard:{add:[15,150], subtract:[5,100], multiply:[3,18], divide:[2,15]}
+  };
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function loadVoices(){
+    if (!('speechSynthesis' in window)) return;
+    voices = speechSynthesis.getVoices();
+    const sel = $('voice'), old = sel.value;
+    sel.innerHTML = '<option value="">Default device voice</option>';
+    voices.forEach((v,i) => {
+      const o = document.createElement('option'); o.value = String(i);
+      o.textContent = `${v.name} (${v.lang})`; sel.appendChild(o);
+    });
+    if (old) sel.value = old;
+  }
+  if ('speechSynthesis' in window) {
+    loadVoices(); speechSynthesis.onvoiceschanged = loadVoices;
+  } else {
+    $('status').textContent = 'This browser does not support spoken dictation.';
+    $('startBtn').disabled = true;
+  }
+  $('ops').addEventListener('click', e => {
+    const b=e.target.closest('[data-op]'); if(!b) return;
+    operation=b.dataset.op;
+    document.querySelectorAll('.op').forEach(x=>x.classList.toggle('selected',x===b));
+  });
+  $('rate').addEventListener('input',()=> $('rateVal').textContent=Number($('rate').value).toFixed(2)+'×');
+  function getCount(){ return Number($('count').value); }
+  function makeSequence(){
+    const n=getCount(), [lo,hi]=ranges[$('level').value][operation];
+    let nums=[];
+    if(operation==='add'){
+      for(let i=0;i<n;i++) nums.push(rand(lo,hi));
+    } else if(operation==='subtract'){
+      const sub=[]; for(let i=1;i<n;i++) sub.push(rand(lo,hi));
+      const base=sub.reduce((a,b)=>a+b,0)+rand(lo,hi);
+      nums=[base,...sub];
+    } else if(operation==='multiply'){
+      nums.push(rand(lo,hi));
+      for(let i=1;i<n;i++) nums.push(rand(lo,hi));
+    } else {
+      // Build a whole-number division chain backwards, so every spoken division is exact.
+      let result=rand(2,Math.max(8,hi));
+      const divisors=[];
+      for(let i=1;i<n;i++) divisors.push(rand(lo,hi));
+      let start=result;
+      for(const d of divisors) start*=d;
+      nums=[start,...divisors];
+    }
+    let result=nums[0];
+    for(let i=1;i<nums.length;i++){
+      if(operation==='add') result+=nums[i];
+      if(operation==='subtract') result-=nums[i];
+      if(operation==='multiply') result*=nums[i];
+      if(operation==='divide') result/=nums[i];
+    }
+    return {nums,result};
+  }
+  function speak(text, onend){
+    if(!('speechSynthesis' in window)) return;
+    const u=new SpeechSynthesisUtterance(String(text));
+    u.rate=Number($('rate').value);
+    const idx=$('voice').value;
+    if(idx!=='' && voices[Number(idx)]) u.voice=voices[Number(idx)];
+    if(onend) u.onend=onend;
+    speechSynthesis.speak(u);
+  }
+  function stopSpeech(){ if('speechSynthesis' in window) speechSynthesis.cancel(); }
+  function dictate(){
+    stopSpeech();
+    $('answerCard').classList.add('hidden');
+    $('roundCard').classList.remove('hidden');
+    $('roundTitle').textContent='Listen carefully';
+    $('status').textContent='Get ready…';
+    $('soundIcon').textContent='🔊';
+    let i=0;
+    const gap=Number($('gap').value);
+    function sayNext(){
+      if(i>=sequence.length){
+        $('status').textContent='Sequence complete. Work out the answer.';
+        $('soundIcon').textContent='🧠';
+        $('answerCard').classList.remove('hidden');
+        $('answer').value=''; $('answer').focus();
+        roundStarted=Date.now();
+        return;
+      }
+      $('status').textContent=`Number ${i+1} of ${sequence.length}`;
+      const val=sequence[i++];
+      speak(val,()=>setTimeout(sayNext,gap));
+    }
+    setTimeout(sayNext,450);
+  }
+  function startRound(){
+    if(!('speechSynthesis' in window)) return;
+    stopSpeech();
+    const generated=makeSequence(); sequence=generated.nums; answerValue=generated.result;
+    answered=false; $('feedback').className='feedback'; $('feedback').textContent='';
+    $('review').classList.add('hidden'); $('nextBtn').disabled=true;
+    dictate();
+  }
+  function submit(){
+    if(answered) return;
+    const raw=$('answer').value.trim().replace(/,/g,'');
+    if(raw==='' || !Number.isFinite(Number(raw))) { $('feedback').className='feedback bad'; $('feedback').textContent='Enter a valid number first.'; return; }
+    const user=Number(raw), elapsed=roundStarted?Math.max(0,(Date.now()-roundStarted)/1000):0;
+    const isCorrect=Math.abs(user-answerValue)<1e-9;
+    answered=true; attempts++; if(isCorrect) correctCount++; totalSeconds+=elapsed;
+    $('feedback').className='feedback '+(isCorrect?'good':'bad');
+    $('feedback').textContent=isCorrect?`Correct! You took ${elapsed.toFixed(1)} seconds.`:`Not quite. The correct answer is ${answerValue.toLocaleString()}.`;
+    const expr=sequence.join(` ${symbols[operation]} `);
+    $('review').classList.remove('hidden');
+    $('review').innerHTML=`<b>Sequence:</b> <span class="sequence">${sequence.map(x=>x.toLocaleString()).join(' → ')}</span><br><b>Calculation:</b> ${expr}<br><b>Correct result:</b> ${answerValue.toLocaleString()}`;
+    $('nextBtn').disabled=false; updateStats();
+  }
+  function updateStats(){
+    $('accuracy').textContent=attempts?Math.round(correctCount/attempts*100)+'%':'—';
+    $('correct').textContent=`${correctCount}/${attempts}`;
+    $('avgTime').textContent=attempts?(totalSeconds/attempts).toFixed(1)+'s':'—';
+  }
+  $('startBtn').addEventListener('click',startRound);
+  $('repeatBtn').addEventListener('click',()=>{ if(sequence.length) dictate(); });
+  $('stopBtn').addEventListener('click',()=>{stopSpeech();$('status').textContent='Audio stopped. Tap Repeat sequence when ready.';});
+  $('submitBtn').addEventListener('click',submit);
+  $('answer').addEventListener('keydown',e=>{if(e.key==='Enter') submit();});
+  $('nextBtn').addEventListener('click',startRound);
+  $('resetStats').addEventListener('click',()=>{correctCount=0;attempts=0;totalSeconds=0;updateStats();});
+  $('showHelp').addEventListener('click',()=>$('helpText').classList.toggle('hidden'));
+  function setupRecognition(){
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){ $('speechAnswerBtn'); $('speechHint').textContent='Voice answer is not supported by this browser. You can still type your answer. On iPhone, use the keyboard microphone for dictation.'; $('speakAnswerBtn').disabled=true; return; }
+    recognition=new SR(); recognition.lang='en-IN'; recognition.interimResults=false; recognition.maxAlternatives=1;
+    recognition.onresult=e=>{
+      const transcript=e.results[0][0].transcript;
+      const match=transcript.replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);
+      if(match) $('answer').value=match[0];
+      else $('speechHint').textContent=`I heard: “${transcript}”. Please check or type the number.`;
+    };
+    recognition.onerror=()=> $('speechHint').textContent='Could not recognise that. Try again or type your answer.';
+    recognition.onend=()=> $('speakAnswerBtn').textContent='🎙 Speak answer';
+  }
+  setupRecognition();
+  $('speakAnswerBtn').addEventListener('click',()=>{
+    if(!recognition) return;
+    try { $('speakAnswerBtn').textContent='Listening…'; recognition.start(); }
+    catch(e){ $('speechHint').textContent='Voice input is already active. Try again in a moment.'; }
+  });
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  }
+})();
+</script>
+</body>
+</html>
